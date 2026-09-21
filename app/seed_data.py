@@ -99,6 +99,8 @@ def seed():
                     pm_val = float(c4) if c4 else 0.0
                     up_val = float(c5) if c5 else 0.0
                     sug_val = float(c6) if c6 else 0.0
+                    if area_val > 0 and up_val > 0 and abs((up_val / area_val) - 230000) < 1:
+                        pm_val = 230000.0
                     cursor.execute("""
                         INSERT OR IGNORE INTO units (unit_code, floor, unit_type, area, price_m, catalog_price, sug, status)
                         VALUES (?, ?, ?, ?, ?, ?, ?, 'AVAILABLE')
