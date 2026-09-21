@@ -5275,15 +5275,11 @@
         const token = authToken || localStorage.getItem('mega_mall_token') || '';
         const downloadUrl = `/api/backup/download?token=${encodeURIComponent(token)}`;
         
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = `mega_mall_backup_${new Date().toISOString().slice(0, 10)}.db`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        // Direct browser download to Downloads folder
+        window.location.href = downloadUrl;
         
         setTimeout(() => {
-          showToast('تم تحميل النسخة الاحتياطية بنجاح على جهازك ✅');
+          showToast('تم تحميل النسخة الاحتياطية بنجاح في مجلد Downloads على جهازك ✅');
         }, 1500);
       } catch (err) {
         showToast('خطأ أثناء تحميل النسخة الاحتياطية', 'error');
