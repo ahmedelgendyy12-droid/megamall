@@ -4,12 +4,13 @@ import hashlib
 import json
 import shutil
 import io
+import uuid
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from typing import Optional, List
-from fastapi import FastAPI, HTTPException, Header, Depends, Query, Request
+from fastapi import FastAPI, HTTPException, Header, Depends, Query, Request, File, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -2412,6 +2413,150 @@ def backup_database(user: dict = Depends(get_current_user)):
     conn.close()
     
     return {"success": True, "filename": backup_filename, "message": "تم إنشاء النسخة الاحتياطية بنجاح"}
+
+# --- RESTORE DATABASE ---
+@app.post("/api/restore")
+async def restore_database(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="غير مصرح لك باسترجاع قاعدة البيانات (متاح للمدير فقط)")
+    
+    # 1. Validate file extension
+    filename = file.filename or ""
+    if not (filename.lower().endswith(".db") or filename.lower().endswith(".sqlite") or filename.lower().endswith(".sqlite3")):
+        raise HTTPException(status_code=400, detail="نوع الملف غير مدعوم. يرجى رفع ملف قاعدة بيانات بصيغة .db أو .sqlite")
+    
+    # 2. Save to a temporary file
+    backup_dir = os.path.join(BASE_DIR, "backups")
+    os.makedirs(backup_dir, exist_ok=True)
+    unique_suffix = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:8]}"
+    temp_filename = f"temp_restore_{unique_suffix}.db"
+    temp_path = os.path.join(backup_dir, temp_filename)
+    
+    MAX_RESTORE_SIZE = 100 * 1024 * 1024  # 100 MB limit
+    size = 0
+    try:
+        with open(temp_path, "wb") as f_out:
+            while chunk := await file.read(1024 * 1024):  # 1MB chunks
+                size += len(chunk)
+                if size > MAX_RESTORE_SIZE:
+                    raise HTTPException(status_code=400, detail="حجم الملف كبير جداً (الحد الأقصى 100 ميجابايت)")
+                f_out.write(chunk)
+    except HTTPException:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        raise
+    except Exception as e:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        raise HTTPException(status_code=500, detail=f"فشل في استلام الملف: {str(e)}")
+
+    # 3. Validate SQLite integrity & essential schema
+    test_conn = None
+    try:
+        try:
+            test_conn = sqlite3.connect(temp_path)
+            test_cur = test_conn.cursor()
+            
+            # Check integrity
+            test_cur.execute("PRAGMA integrity_check;")
+            res = test_cur.fetchone()
+            if not res or str(res[0]).lower() != "ok":
+                raise HTTPException(status_code=400, detail="الملف المرفوع تالف أو ليس قاعدة بيانات SQLite صالحة")
+            
+            # Check required tables
+            test_cur.execute("SELECT name FROM sqlite_master WHERE type='table';")
+            tables = {row[0] for row in test_cur.fetchall()}
+            required_tables = {"companies", "users", "units", "sales", "installments"}
+            missing_tables = required_tables - tables
+            if missing_tables:
+                raise HTTPException(status_code=400, detail=f"قاعدة البيانات المرفوعة تفتقد جداول رئيسية لنظام ميجا مول: {', '.join(missing_tables)}")
+            
+            # Check admin user existence
+            test_cur.execute("SELECT COUNT(*) FROM users WHERE role = 'admin';")
+            admin_count = test_cur.fetchone()[0]
+            if admin_count < 1:
+                raise HTTPException(status_code=400, detail="قاعدة البيانات المرفوعة لا تحتوي على أي حساب مدير (Admin)")
+        finally:
+            if test_conn:
+                try:
+                    test_conn.close()
+                except Exception:
+                    pass
+    except HTTPException:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        raise
+    except Exception as e:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+        raise HTTPException(status_code=400, detail=f"فشل فحص بنية الملف: {str(e)}")
+
+    # 4. Create an automated pre-restore safety backup of active database
+    pre_restore_filename = f"pre_restore_backup_{unique_suffix}.db"
+    pre_restore_path = os.path.join(backup_dir, pre_restore_filename)
+    try:
+        if os.path.exists(DB_PATH):
+            shutil.copy2(DB_PATH, pre_restore_path)
+    except Exception as e:
+        print(f"Warning: Could not create pre-restore backup: {e}")
+
+    # 5. Perform the restoration using SQLite online backup API
+    try:
+        src = sqlite3.connect(temp_path)
+        dst = sqlite3.connect(DB_PATH)
+        with dst:
+            src.backup(dst)
+        src.close()
+        dst.close()
+    except Exception as e:
+        try:
+            shutil.copy2(temp_path, DB_PATH)
+        except Exception as copy_err:
+            if os.path.exists(temp_path):
+                os.remove(temp_path)
+            raise HTTPException(status_code=500, detail=f"حدث خطأ أثناء استبدال قاعدة البيانات: {str(copy_err)}")
+    finally:
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception:
+                pass
+
+    # 6. Run migrations to ensure any schema updates match current code
+    ensure_db_migrations()
+
+    # 7. Log restore action in activity logs
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO activity_logs (username, action, details)
+            VALUES (?, 'RESTORE_BACKUP', ?)
+        """, (user["username"], f"تم استرجاع قاعدة البيانات من الملف: {filename} (تم حفظ نسخة احترازية: {pre_restore_filename})"))
+        conn.commit()
+        conn.close()
+    except Exception as log_err:
+        print(f"Could not log restore action: {log_err}")
+
+    return {
+        "success": True, 
+        "message": "تم استرجاع قاعدة البيانات بنجاح!", 
+        "restored_file": filename,
+        "safety_backup": pre_restore_filename
+    }
+
 
 # --- EMAIL SETTINGS & NOTIFICATIONS ---
 EMAIL_CONFIG_PATH = os.path.join(BASE_DIR, "email_config.json")

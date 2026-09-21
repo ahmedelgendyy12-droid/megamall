@@ -303,6 +303,11 @@
           <i data-lucide="database" class="w-3.5 h-3.5 text-indigo-600"></i>
           <span>نسخ احتياطي لقاعدة البيانات</span>
         </button>
+        <!-- Mobile Admin Restore Trigger -->
+        <button id="sidebarRestoreBtn" onclick="openModal('modalRestoreBackup')" style="display:none;" class="w-full mt-2 py-2 px-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 hover:bg-amber-100 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 text-xs font-bold transition-premium flex items-center justify-center gap-1.5 lg:hidden">
+          <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-amber-600"></i>
+          <span>استرجاع نسخة احتياطية</span>
+        </button>
       </div>
 
     </aside>
@@ -416,6 +421,18 @@
             >
               <i data-lucide="database" class="w-3.5 h-3.5 text-indigo-600"></i>
               <span>نسخ احتياطي</span>
+            </button>
+
+            <!-- Restore DB Button (Admin only on desktop) -->
+            <button 
+              id="restoreBtn" 
+              onclick="openModal('modalRestoreBackup')" 
+              style="display:none;" 
+              class="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-200/80 dark:border-amber-800/60 shadow-sm transition-premium"
+              title="استرجاع قاعدة البيانات من نسخة احتياطية"
+            >
+              <i data-lucide="upload-cloud" class="w-3.5 h-3.5 text-amber-600"></i>
+              <span>استرجاع نسخة</span>
             </button>
 
           </div>
@@ -2178,6 +2195,104 @@
     </div>
   </div>
 
+  <!-- =================== RESTORE DATABASE MODAL =================== -->
+  <div id="modalRestoreBackup" class="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm hidden flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+    <div class="bg-white dark:bg-[#111827] rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-100 dark:border-slate-800 space-y-4 max-h-[90dvh] overflow-y-auto custom-scrollbar my-auto">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-amber-100 dark:bg-amber-950/50 text-amber-600 flex items-center justify-center">
+            <i data-lucide="upload-cloud" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="text-base font-black text-slate-900 dark:text-white">استرجاع قاعدة البيانات</h3>
+            <p class="text-xs text-slate-400">استعادة الداتا من ملف نسخة احتياطية (.db)</p>
+          </div>
+        </div>
+        <button onclick="closeModal('modalRestoreBackup')" class="text-slate-400 hover:text-slate-600 p-1 rounded-xl">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <!-- Warning & Safety Notice -->
+      <div class="bg-amber-50/90 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-3.5 text-xs text-amber-900 dark:text-amber-300 space-y-1.5">
+        <div class="font-bold flex items-center gap-1.5">
+          <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600"></i>
+          <span>تنبيه أمان هام:</span>
+        </div>
+        <p class="text-[11px] leading-relaxed text-amber-800 dark:text-amber-400">
+          عملية الاسترجاع ستقوم باستبدال كافة البيانات الحالية بالبيانات الموجودة داخل الملف المرفوع.
+          <strong>لأمانك التام:</strong> سيقوم السيستم بحفظ نسخة احتياطية صامتة من بياناتك الحالية تلقائياً قبل البدء.
+        </p>
+      </div>
+
+      <!-- Form -->
+      <form id="restoreBackupForm" onsubmit="handleRestoreDatabase(event)" class="space-y-4 text-xs">
+        
+        <!-- File Drop Area -->
+        <div 
+          id="restoreDropZone"
+          onclick="document.getElementById('restoreFileInput').click()"
+          ondragover="event.preventDefault(); this.classList.add('border-amber-500')"
+          ondragleave="this.classList.remove('border-amber-500')"
+          ondrop="handleRestoreDrop(event)"
+          class="border-2 border-dashed border-slate-200 dark:border-slate-700 hover:border-amber-500 dark:hover:border-amber-500 rounded-3xl p-6 text-center cursor-pointer bg-slate-50/50 dark:bg-slate-800/30 hover:bg-amber-50/30 dark:hover:bg-amber-950/20 transition-premium"
+        >
+          <input 
+            type="file" 
+            id="restoreFileInput" 
+            accept=".db,.sqlite,.sqlite3" 
+            class="hidden" 
+            onchange="handleRestoreFileSelected(this)"
+          >
+          <div class="flex flex-col items-center gap-2">
+            <div class="w-12 h-12 rounded-2xl bg-amber-100 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center">
+              <i data-lucide="file-up" class="w-6 h-6"></i>
+            </div>
+            <div>
+              <p class="font-bold text-slate-700 dark:text-slate-200 text-sm">اضغط لاختيار ملف النسخة الاحتياطية</p>
+              <p class="text-[11px] text-slate-400 mt-0.5">يدعم ملفات SQLite بصيغة (.db أو .sqlite)</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Selected File Preview -->
+        <div id="restoreFilePreview" class="hidden p-3 rounded-2xl bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+          <div class="flex items-center gap-2.5 overflow-hidden">
+            <i data-lucide="database" class="w-4 h-4 text-amber-600 shrink-0"></i>
+            <div class="truncate">
+              <p id="restoreFileName" class="font-bold text-slate-800 dark:text-slate-200 truncate text-left" dir="ltr"></p>
+              <p id="restoreFileSize" class="text-[10px] text-slate-400 text-left" dir="ltr"></p>
+            </div>
+          </div>
+          <button type="button" onclick="clearRestoreFile()" class="text-rose-500 hover:text-rose-700 p-1">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <!-- Status Progress Indicator -->
+        <div id="restoreStatusIndicator" class="hidden p-3 rounded-2xl text-xs font-bold text-center"></div>
+
+        <!-- Action Buttons -->
+        <div class="flex items-center justify-end gap-2 pt-2">
+          <button type="button" onclick="closeModal('modalRestoreBackup')" class="px-4 py-2.5 rounded-2xl font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+            إلغاء
+          </button>
+          <button 
+            type="submit" 
+            id="restoreSubmitBtn" 
+            disabled 
+            class="px-5 py-2.5 rounded-2xl font-black bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-sm transition-premium flex items-center gap-1.5"
+          >
+            <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+            <span id="restoreBtnText">بدء استرجاع البيانات</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Toast Container -->
   <div id="toastContainer" class="fixed top-4 left-4 right-4 sm:left-auto sm:right-6 sm:w-80 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
@@ -2420,11 +2535,15 @@
         if (scopeCompanyLabelMobile) scopeCompanyLabelMobile.innerText = 'شركة';
       }
 
-      // Show backup button only for admin (Desktop in header >=768px, Mobile in sidebar drawer)
+      // Show backup & restore button only for admin (Desktop in header >=768px, Mobile in sidebar drawer)
       const isAdmin = (currentUser && currentUser.role === 'admin');
       const backupBtn = document.getElementById('backupBtn');
       if (backupBtn) {
         backupBtn.style.display = (isAdmin && window.innerWidth >= 768) ? 'inline-flex' : 'none';
+      }
+      const restoreBtn = document.getElementById('restoreBtn');
+      if (restoreBtn) {
+        restoreBtn.style.display = (isAdmin && window.innerWidth >= 768) ? 'inline-flex' : 'none';
       }
       const telegramTopBtn = document.getElementById('telegramTopBtn');
       if (telegramTopBtn) {
@@ -2433,6 +2552,10 @@
       const sidebarBackupBtn = document.getElementById('sidebarBackupBtn');
       if (sidebarBackupBtn) {
         sidebarBackupBtn.style.display = isAdmin ? 'flex' : 'none';
+      }
+      const sidebarRestoreBtn = document.getElementById('sidebarRestoreBtn');
+      if (sidebarRestoreBtn) {
+        sidebarRestoreBtn.style.display = isAdmin ? 'flex' : 'none';
       }
       // Show Activity Log tab only for admin
       const navActivity = document.getElementById('navTabActivity');
@@ -5156,12 +5279,116 @@
         });
         const data = await res.json();
         if (res.ok) {
-          showToast(`تم إنشاء نسخة احتياطية بنجاح: ${data.backup_file}`);
+          showToast(`تم إنشاء نسخة احتياطية بنجاح: ${data.filename || data.backup_file || ''}`);
         } else {
           showToast(data.detail || 'فشل النسخ الاحتياطي', 'error');
         }
       } catch (err) {
         showToast('خطأ في الاتصال بالخادم', 'error');
+      }
+    }
+
+    // --- DATABASE RESTORE ---
+    function handleRestoreFileSelected(input) {
+      const file = input.files && input.files[0];
+      if (!file) return;
+
+      const preview = document.getElementById('restoreFilePreview');
+      const nameEl = document.getElementById('restoreFileName');
+      const sizeEl = document.getElementById('restoreFileSize');
+      const submitBtn = document.getElementById('restoreSubmitBtn');
+      const statusEl = document.getElementById('restoreStatusIndicator');
+
+      if (statusEl) statusEl.classList.add('hidden');
+
+      nameEl.textContent = file.name;
+      const sizeKB = (file.size / 1024).toFixed(1);
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      sizeEl.textContent = file.size > 1024 * 1024 ? `${sizeMB} MB` : `${sizeKB} KB`;
+
+      preview.classList.remove('hidden');
+      submitBtn.disabled = false;
+      if (window.lucide) lucide.createIcons();
+    }
+
+    function handleRestoreDrop(e) {
+      e.preventDefault();
+      const dropZone = document.getElementById('restoreDropZone');
+      if (dropZone) dropZone.classList.remove('border-amber-500');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]) {
+        const input = document.getElementById('restoreFileInput');
+        input.files = e.dataTransfer.files;
+        handleRestoreFileSelected(input);
+      }
+    }
+
+    function clearRestoreFile() {
+      const input = document.getElementById('restoreFileInput');
+      if (input) input.value = '';
+      const preview = document.getElementById('restoreFilePreview');
+      if (preview) preview.classList.add('hidden');
+      const submitBtn = document.getElementById('restoreSubmitBtn');
+      if (submitBtn) submitBtn.disabled = true;
+      const statusEl = document.getElementById('restoreStatusIndicator');
+      if (statusEl) statusEl.classList.add('hidden');
+    }
+
+    async function handleRestoreDatabase(e) {
+      e.preventDefault();
+      const input = document.getElementById('restoreFileInput');
+      const file = input.files && input.files[0];
+      if (!file) {
+        showToast('يرجى اختيار ملف نسخة احتياطية أولاً', 'error');
+        return;
+      }
+
+      if (!confirm('⚠️ تحذير: هل أنت متأكد من رغبتك في استرجاع قاعدة البيانات الآن؟\n\nسيتم استبدال البيانات الحالية بالكامل بالبيانات الموجودة في الملف المرفوع.\n(السيستم سيأخذ نسخة أمان تلقائية قبل الاسترجاع).')) {
+        return;
+      }
+
+      const submitBtn = document.getElementById('restoreSubmitBtn');
+      const btnText = document.getElementById('restoreBtnText');
+      const statusEl = document.getElementById('restoreStatusIndicator');
+
+      submitBtn.disabled = true;
+      btnText.textContent = 'جاري الفحص والاسترجاع...';
+      statusEl.className = 'p-3 rounded-2xl text-xs font-bold text-center bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800';
+      statusEl.textContent = '⏳ جاري رفع وفحص الملف واسترجاع قاعدة البيانات... برجاء عدم إغلاق الصفحة';
+      statusEl.classList.remove('hidden');
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const res = await fetch('/api/restore', {
+          method: 'POST',
+          headers: {
+            'Authorization': authToken ? `Bearer ${authToken}` : ''
+          },
+          body: formData
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          statusEl.className = 'p-3 rounded-2xl text-xs font-bold text-center bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800';
+          statusEl.textContent = `✅ ${data.message} (تم حفظ نسخة أمان باسم: ${data.safety_backup})`;
+          showToast('✅ تم استرجاع قاعدة البيانات بنجاح! جاري تحديث الصفحة...', 'success');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1800);
+        } else {
+          statusEl.className = 'p-3 rounded-2xl text-xs font-bold text-center bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800';
+          statusEl.textContent = `❌ ${data.detail || 'فشل استرجاع قاعدة البيانات'}`;
+          showToast(data.detail || 'فشل الاسترجاع', 'error');
+          submitBtn.disabled = false;
+          btnText.textContent = 'بدء استرجاع البيانات';
+        }
+      } catch (err) {
+        statusEl.className = 'p-3 rounded-2xl text-xs font-bold text-center bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-200 dark:border-rose-800';
+        statusEl.textContent = '❌ حدث خطأ في الاتصال بالخادم أثناء الرفع';
+        showToast('خطأ في الاتصال بالخادم', 'error');
+        submitBtn.disabled = false;
+        btnText.textContent = 'بدء استرجاع البيانات';
       }
     }
 
@@ -5324,9 +5551,12 @@
     }
 
     window.addEventListener('resize', () => {
-      const bb = document.getElementById('backupBtn');
-      if (bb && typeof currentUser !== 'undefined' && currentUser) {
-        bb.style.display = (currentUser.role === 'admin' && window.innerWidth >= 768) ? 'inline-flex' : 'none';
+      if (typeof currentUser !== 'undefined' && currentUser) {
+        const isAdmin = (currentUser.role === 'admin');
+        const bb = document.getElementById('backupBtn');
+        if (bb) bb.style.display = (isAdmin && window.innerWidth >= 768) ? 'inline-flex' : 'none';
+        const rb = document.getElementById('restoreBtn');
+        if (rb) rb.style.display = (isAdmin && window.innerWidth >= 768) ? 'inline-flex' : 'none';
       }
     });
   
