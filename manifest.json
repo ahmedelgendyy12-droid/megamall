@@ -1,0 +1,26 @@
+{
+  "name": "ميجا مول - نظام إدارة الأقساط والمبيعات",
+  "short_name": "ميجا مول",
+  "description": "نظام متكامل لإدارة ومتابعة مبيعات وأقساط ميجا مول (Mega Mall) لتحالف الشركات الأربعة",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fe",
+  "theme_color": "#4f46e5",
+  "orientation": "any",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
