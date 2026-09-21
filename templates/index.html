@@ -1290,7 +1290,6 @@
                     <th class="py-3 px-3 text-center">المساحة</th>
                     <th class="py-3 px-3">سعر المتر</th>
                     <th class="py-3 px-3">السعر</th>
-                    <th class="py-3 px-3 text-center">نسبة التحميل (SUG)</th>
                     <th class="py-3 px-3 text-center">الحالة</th>
                     <th class="py-3 px-3">المشتري / الشركة</th>
                     <th class="py-3 px-3 text-center">الإجراء</th>
@@ -4020,7 +4019,6 @@
           <td class="py-3 px-3 font-sans text-center whitespace-nowrap font-bold">${u.area} م²</td>
           <td class="py-3 px-3 font-sans whitespace-nowrap">${Number(u.price_m).toLocaleString()} ج.م</td>
           <td class="py-3 px-3 font-black font-sans text-slate-900 dark:text-white whitespace-nowrap">${Number(u.catalog_price).toLocaleString()} ج.م</td>
-          <td class="py-3 px-3 font-sans text-slate-400 text-center whitespace-nowrap">${u.sug ? Number(u.sug).toFixed(1) + '%' : '—'}</td>
           <td class="py-3 px-3 text-center whitespace-nowrap">${statusBadge}</td>
           <td class="py-3 px-3">${clientInfo}</td>
           <td class="py-3 px-3 text-center whitespace-nowrap">${action}</td>
