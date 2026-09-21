@@ -45,8 +45,9 @@ app.add_middleware(
 
 # Start automated background backup scheduler (runs every 12 hours automatically)
 try:
-    from auto_backup import start_background_backup_scheduler
-    start_background_backup_scheduler(interval_hours=12)
+    if os.environ.get("DISABLE_AUTO_BACKUP") != "1" and not os.environ.get("PYTHONANYWHERE_SITE"):
+        from auto_backup import start_background_backup_scheduler
+        start_background_backup_scheduler(interval_hours=12)
 except Exception:
     pass
 
