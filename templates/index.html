@@ -2562,6 +2562,11 @@
         if (isAdmin) navActivity.classList.remove('hidden');
         else navActivity.classList.add('hidden');
       }
+      const tabActivityContent = document.getElementById('tabActivityContent');
+      if (!isAdmin) {
+        if (tabActivityContent) tabActivityContent.classList.add('hidden');
+        if (activeTab === 'activity') switchTab('dashboard');
+      }
 
       // Show Telegram Bot tab in sidebar only for admin
       const navTelegram = document.getElementById('navTabTelegram');
@@ -4092,14 +4097,24 @@
 
     // Switch Main Tabs
     function switchTab(tab) {
+      if (tab === 'activity' && (!currentUser || currentUser.role !== 'admin')) {
+        tab = 'dashboard';
+      }
       activeTab = tab;
       const tabs = ['dashboard', 'installments', 'units', 'activity', 'companies'];
       tabs.forEach(t => {
         const content = document.getElementById(`tab${t.charAt(0).toUpperCase() + t.slice(1)}Content`);
         const navBtn = document.getElementById(`navTab${t.charAt(0).toUpperCase() + t.slice(1)}`);
         if (content) {
-          if (t === tab) content.classList.remove('hidden');
-          else content.classList.add('hidden');
+          if (t === tab) {
+            if (t === 'activity' && (!currentUser || currentUser.role !== 'admin')) {
+              content.classList.add('hidden');
+            } else {
+              content.classList.remove('hidden');
+            }
+          } else {
+            content.classList.add('hidden');
+          }
         }
         if (navBtn) {
           if (t === tab) {
@@ -4109,7 +4124,7 @@
           }
         }
       });
-      if (tab === 'activity') loadActivityLogs(1);
+      if (tab === 'activity' && currentUser && currentUser.role === 'admin') loadActivityLogs(1);
       if (tab === 'installments') { loadInstallments(); loadYearsSummary(); }
       if (tab === 'units') loadUnits();
       // Close mobile sidebar on tab switch
@@ -5068,6 +5083,7 @@
     };
 
     async function loadActivityLogs(page = 1) {
+      if (!currentUser || currentUser.role !== 'admin') return;
       activityCurrentPageNum = page;
       const tbody = document.getElementById('activityLogsTableBody');
       const mobileContainer = document.getElementById('activityLogsMobileCards');
@@ -5129,6 +5145,7 @@
     }
 
     function renderActivityLogs(logs) {
+      if (!currentUser || currentUser.role !== 'admin') return;
       const tbody = document.getElementById('activityLogsTableBody');
       const mobileContainer = document.getElementById('activityLogsMobileCards');
       if (tbody) tbody.innerHTML = '';
@@ -5208,6 +5225,7 @@
     }
 
     function changeActivityPage(delta) {
+      if (!currentUser || currentUser.role !== 'admin') return;
       const targetPage = activityCurrentPageNum + delta;
       if (targetPage >= 1 && targetPage <= activityTotalPagesNum) {
         loadActivityLogs(targetPage);
@@ -5215,6 +5233,7 @@
     }
 
     function printActivityLogsPdf() {
+      if (!currentUser || currentUser.role !== 'admin') return;
       const action = document.getElementById('activityActionFilter')?.value || 'all';
       const user = document.getElementById('activityUserFilter')?.value || 'all';
       const dateFrom = document.getElementById('activityDateFrom')?.value || '';
