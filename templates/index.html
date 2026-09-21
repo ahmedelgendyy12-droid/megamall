@@ -5271,18 +5271,22 @@
 
     async function triggerBackup() {
       try {
-        const res = await fetch('/api/backup', {
-          method: 'POST',
-          headers: { 'Authorization': authToken ? `Bearer ${authToken}` : '' }
-        });
-        const data = await res.json();
-        if (res.ok) {
-          showToast(`تم إنشاء نسخة احتياطية بنجاح: ${data.filename || data.backup_file || ''}`);
-        } else {
-          showToast(data.detail || 'فشل النسخ الاحتياطي', 'error');
-        }
+        showToast('جاري تجهيز النسخة الاحتياطية وتنزيلها على جهازك...', 'info');
+        const token = authToken || localStorage.getItem('mega_mall_token') || '';
+        const downloadUrl = `/api/backup/download?token=${encodeURIComponent(token)}`;
+        
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `mega_mall_backup_${new Date().toISOString().slice(0, 10)}.db`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        setTimeout(() => {
+          showToast('تم تحميل النسخة الاحتياطية بنجاح على جهازك ✅');
+        }, 1500);
       } catch (err) {
-        showToast('خطأ في الاتصال بالخادم', 'error');
+        showToast('خطأ أثناء تحميل النسخة الاحتياطية', 'error');
       }
     }
 

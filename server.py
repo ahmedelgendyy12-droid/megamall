@@ -11,7 +11,7 @@ from email.mime.multipart import MIMEMultipart
 from datetime import datetime, timedelta
 from typing import Optional, List
 from fastapi import FastAPI, HTTPException, Header, Depends, Query, Request, File, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -2414,6 +2414,38 @@ def backup_database(user: dict = Depends(get_current_user)):
     conn.close()
     
     return {"success": True, "filename": backup_filename, "message": "تم إنشاء النسخة الاحتياطية بنجاح"}
+
+@app.get("/api/backup/download")
+def download_backup_database(user: dict = Depends(get_current_user_flexible)):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="غير مصرح لك بتحميل نسخة احتياطية")
+        
+    backup_dir = os.path.join(BASE_DIR, "backups")
+    os.makedirs(backup_dir, exist_ok=True)
+    
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"mega_mall_backup_{timestamp}.db"
+    backup_path = os.path.join(backup_dir, backup_filename)
+    
+    shutil.copy2(DB_PATH, backup_path)
+    
+    try:
+        conn = sqlite3.connect(DB_PATH)
+        c = conn.cursor()
+        c.execute("""
+            INSERT INTO activity_logs (username, action, details)
+            VALUES (?, 'DOWNLOAD_BACKUP', ?)
+        """, (user["username"], f"تحميل نسخة احتياطية: {backup_filename}"))
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+        
+    return FileResponse(
+        path=backup_path,
+        filename=backup_filename,
+        media_type="application/octet-stream"
+    )
 
 # --- RESTORE DATABASE ---
 @app.post("/api/restore")
